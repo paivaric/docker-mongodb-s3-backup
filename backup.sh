@@ -20,9 +20,10 @@ This script dumps the current mongo database, tars it, then sends it to an Amazo
 Options:
    -h      Show this message
 Variables:
-   MONGODB_HOST        Mongodb node host (defaults to localhost)
+   MONGODB_HOST        Mongodb node host (defaults to localhost:27017)
    MONGODB_USER        Mongodb user (optional)
    MONGODB_PASSWORD    Mongodb password (optional)
+   MONGODB_DATABASE    Mongodb database (optional)
    AWS_ACCESS_KEY      AWS Access Key
    AWS_SECRET_KEY      AWS Secret Key
    S3_REGION           Amazon S3 region
@@ -31,6 +32,7 @@ EOF
 }
 
 MONGODB_HOST=${MONGODB_HOST:-localhost}
+MONGODB_DATABASE=${MONGODB_DATABASE:-admin}
 
 while getopts “h” OPTION
 do
@@ -62,15 +64,15 @@ if [[ ! -z $MONGODB_HOST ]]
 then
   MONGODB_HOST="localhost"
 fi
-if [[ ! -z $MONGODB_USER ]] && [[ ! -z $MONGODB_PASSWORD ]]
+
+if [[ ! -z $MONGODB_DATABASE ]]
 then
-  mongo -username "$MONGODB_USER" -password "$MONGODB_PASSWORD" "$MONGODB_HOST/admin" --eval "var databaseNames = db.getMongo().getDBNames(); for (var i in databaseNames) { printjson(db.getSiblingDB(databaseNames[i]).getCollectionNames()) }; printjson(db.fsyncLock());"
+  MONGODB_DATABASE="admin"
+fi
 
-  # Dump the database
-  mongodump -username "$MONGODB_USER" -password "$MONGODB_PASSWORD" -host "$MONGODB_HOST" --out $DIR/backup/$FILE_NAME
-
-  # Unlock the database
-  mongo -username "$MONGODB_USER" -password "$MONGODB_PASSWORD" "$MONGODB_HOST/admin" --eval "printjson(db.fsyncUnlock());"
+if [[ ! -z $MONGODB_USER ]] && [[ ! -z $MONGODB_PASSWORD ]] && [[ ! -z $MONGODB_DATABASE ]]
+then
+  mongodump -username "$MONGODB_USER" -password "$MONGODB_PASSWORD" -host "$MONGODB_HOST" --db "$MONGODB_DATABASE" --out $DIR/backup/$FILE_NAME
 else
   mongo "$MONGODB_HOST/admin" --eval "var databaseNames = db.getMongo().getDBNames(); for (var i in databaseNames) { printjson(db.getSiblingDB(databaseNames[i]).getCollectionNames()) }; printjson(db.fsyncLock());"
 
